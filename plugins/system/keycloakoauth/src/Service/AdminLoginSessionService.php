@@ -35,7 +35,6 @@ final class AdminLoginSessionService
 		$token = trim($token);
 		$session = Factory::getContainer()->get(SessionInterface::class);
 		$payload = $session->get(self::SESSION_KEY);
-		$session->remove(self::SESSION_KEY);
 
 		if (!is_array($payload) || $token === '')
 		{
@@ -54,11 +53,14 @@ final class AdminLoginSessionService
 		$userId = (int) ($payload['user_id'] ?? 0);
 		$username = trim((string) ($payload['username'] ?? ''));
 		$email = trim((string) ($payload['email'] ?? ''));
+		$email = trim((string) ($payload['email'] ?? ''));
 
 		if ($userId <= 0 || $username === '')
 		{
 			return null;
 		}
+
+		$session->remove(self::SESSION_KEY);
 
 		return [
 			'token' => $storedToken,
