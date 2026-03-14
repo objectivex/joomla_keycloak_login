@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="plugin" group="authentication" method="upgrade">
+    <name>plg_authentication_keycloakoauth</name>
+    <author>Sebastian Meyer</author>
+    <creationDate>2026-03-14</creationDate>
+    <copyright>2026 Sebastian Meyer</copyright>
+    <license>GNU General Public License v2 or later</license>
+    <authorEmail>contact@example.com</authorEmail>
+    <authorUrl>https://example.com</authorUrl>
+    <version>1.0.0</version>
+    <description>PLG_AUTHENTICATION_KEYCLOAKOAUTH_DESC</description>
+    <namespace path="src">Joomla\Plugin\Authentication\Keycloakoauth</namespace>
+    <files>
+        <filename plugin="keycloakoauth">src/Extension/Keycloakoauth.php</filename>
+        <file>index.html</file>
+        <folder>language</folder>
+        <folder>src</folder>
+        <folder>services</folder>
+    </files>
+    <languages>
+        <language tag="en-GB">language/en-GB/plg_authentication_keycloakoauth.ini</language>
+        <language tag="en-GB">language/en-GB/plg_authentication_keycloakoauth.sys.ini</language>
+    </languages>
+</extension>
