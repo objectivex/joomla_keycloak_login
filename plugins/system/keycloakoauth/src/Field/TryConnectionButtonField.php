@@ -166,8 +166,15 @@ class TryConnectionButtonField extends FormField
 
 				if (!popup.closed) {
 					popup.document.open();
-					popup.document.write('<!doctype html><html><head><title>{$popupTitle}</title></head><body><p>{$error}</p><p>' + (e.message || '') + '</p></body></html>');
+					popup.document.write('<!doctype html><html><head><title>{$popupTitle}</title></head><body><p>{$error}</p><p id="kcErrorMessage"></p></body></html>');
 					popup.document.close();
+
+					try {
+						var errorElement = popup.document.getElementById('kcErrorMessage');
+						if (errorElement) {
+							errorElement.textContent = e.message || '';
+						}
+					} catch (ignore) {}
 				}
 			})
 			.finally(function () {
