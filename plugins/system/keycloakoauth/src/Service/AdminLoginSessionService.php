@@ -21,6 +21,7 @@ final class AdminLoginSessionService
 			'user_id' => $userId,
 			'username' => $username,
 			'email' => $email,
+			'issued_at' => time(),
 		]);
 
 		return $token;
@@ -42,8 +43,10 @@ final class AdminLoginSessionService
 		}
 
 		$storedToken = (string) ($payload['token'] ?? '');
+		$issuedAt = isset($payload['issued_at']) ? (int) $payload['issued_at'] : 0;
+		$maxTokenAgeSeconds = 300;
 
-		if ($storedToken === '' || !hash_equals($storedToken, $token))
+		if ($storedToken === '' || !hash_equals($storedToken, $token) || $issuedAt <= 0 || (time() - $issuedAt) > $maxTokenAgeSeconds)
 		{
 			return null;
 		}
