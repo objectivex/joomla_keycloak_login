@@ -251,9 +251,11 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 		$code = $input->getString('code', '');
 
 		Log::add(
-			'KeycloakOAuth admin callback received from provider: state=' . $state
+			'KeycloakOAuth admin callback received from provider: '
+				. 'has_state=' . ($state !== '' ? '1' : '0')
+				. ', state_prefix_valid=' . (strpos($state, 'kcadmin_') === 0 ? '1' : '0')
 				. ', has_code=' . ($code !== '' ? '1' : '0')
-				. ', error=' . ($error !== '' ? $error : '-'),
+				. ', has_error=' . ($error !== '' ? '1' : '0'),
 			Log::WARNING,
 			'keycloakoauth'
 		);
