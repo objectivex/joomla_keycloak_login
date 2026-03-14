@@ -45,6 +45,10 @@
                 <field name="try_connection_button" type="TryConnectionButton"
                     label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_TRY_CONNECTION_BUTTON" />
             </fieldset>
+            <fieldset name="group_mapping" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELDSET_GROUP_MAPPING">
+                <field name="group_mappings" type="GroupMappings"
+                    label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_GROUP_MAPPINGS" />
+            </fieldset>
         </fields>
     </config>
 </extension>
