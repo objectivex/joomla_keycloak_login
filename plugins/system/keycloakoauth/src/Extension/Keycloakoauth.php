@@ -3,6 +3,7 @@
 namespace Joomla\Plugin\System\Keycloakoauth\Extension;
 
 use Joomla\CMS\Plugin\CMSPlugin;
+use Joomla\CMS\Session\Session;
 use Joomla\Event\SubscriberInterface;
 use Joomla\CMS\Log\Log;
 
@@ -28,6 +29,7 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 	{
 		return [
 			'onApplicationInitialise' => 'onApplicationInitialise',
+			'onAjaxKeycloakoauth' => 'onAjaxKeycloakoauth',
 		];
 	}
 
@@ -40,5 +42,20 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 	public function onApplicationInitialise(): void
 	{
 		Log::add('KeycloakOAuth initialized', Log::DEBUG, 'joomla');
+	}
+
+	/**
+	 * AJAX-Handler: schreibt eine Debug-Nachricht ins Joomla-Log
+	 *
+	 * @return void
+	 * @since 1.0.0
+	 */
+	public function onAjaxKeycloakoauth(): void
+	{
+		if (!Session::checkToken('get')) {
+			throw new \RuntimeException('Invalid CSRF token', 403);
+		}
+
+		Log::add('KeycloakOAuth discover endpoints button clicked', Log::DEBUG, 'keycloakoauth');
 	}
 }
