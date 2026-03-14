@@ -9,6 +9,7 @@ use Joomla\CMS\Http\HttpFactory;
 final class KeycloakService
 {
 	private const OAUTH_SCOPE = 'openid profile email';
+	private const MAX_CLOCK_SKEW = 300;
 
 	/**
 	 * Validates that the given URL is a well-formed HTTP or HTTPS URL.
@@ -161,8 +162,21 @@ final class KeycloakService
 		}
 
 		$issuedAt = (int) $issuedAtRaw;
+		$now      = time();
 
-		if ($issuedAt <= 0 || (time() - $issuedAt) > $ttl)
+		// Reject non-positive timestamps or timestamps too far in the future (allow small clock skew)
+		if ($issuedAt <= 0 || $issuedAt > ($now + self::MAX_CLOCK_SKEW))
+		{
+			return false;
+		}
+
+		// Reject non-positive TTL values
+		if ($ttl <= 0)
+		{
+			return false;
+		}
+
+		if (($now - $issuedAt) > $ttl)
 		{
 			return false;
 		}
