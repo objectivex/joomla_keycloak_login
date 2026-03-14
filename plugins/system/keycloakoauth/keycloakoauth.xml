@@ -37,6 +37,14 @@
                 <field name="redirect_uri" type="text"
                     label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_REDIRECT_URI" />
             </fieldset>
+            <fieldset name="mapping" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELDSET_MAPPING">
+                <field name="username_mapping" type="MappingSelect"
+                    label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_USERNAME_MAPPING" />
+                <field name="email_mapping" type="MappingSelect"
+                    label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_EMAIL_MAPPING" />
+                <field name="try_connection_button" type="TryConnectionButton"
+                    label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_TRY_CONNECTION_BUTTON" />
+            </fieldset>
         </fields>
     </config>
 </extension>
