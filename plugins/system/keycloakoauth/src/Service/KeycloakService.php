@@ -19,9 +19,23 @@ final class KeycloakService
 	{
 		$baseUrl = trim($baseUrl);
 
-		if (empty($baseUrl) || !filter_var($baseUrl, FILTER_VALIDATE_URL))
+		if ($baseUrl === '' || !filter_var($baseUrl, FILTER_VALIDATE_URL))
 		{
 			throw new \RuntimeException('Invalid base_url', 400);
+		}
+
+		$parts = parse_url($baseUrl);
+
+		if ($parts === false || !isset($parts['scheme']))
+		{
+			throw new \RuntimeException('Invalid base_url', 400);
+		}
+
+		$scheme = strtolower($parts['scheme']);
+
+		if ($scheme !== 'http' && $scheme !== 'https')
+		{
+			throw new \RuntimeException('Invalid base_url scheme', 400);
 		}
 
 		$baseUrl      = rtrim($baseUrl, '/');
