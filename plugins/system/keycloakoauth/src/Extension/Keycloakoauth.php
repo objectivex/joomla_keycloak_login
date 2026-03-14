@@ -112,7 +112,7 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 				$this->createAdminState()
 			);
 
-			Log::add('KeycloakOAuth admin login button URL: ' . $buttonUrl, Log::DEBUG, 'keycloakoauth');
+			Log::add('KeycloakOAuth admin login button URL generated for administrator.', Log::DEBUG, 'keycloakoauth');
 		}
 		catch (\Throwable $exception)
 		{
