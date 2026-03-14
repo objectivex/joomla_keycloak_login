@@ -26,6 +26,7 @@
             <fieldset name="oauth" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELDSET_OAUTH">
                 <field name="client_id" type="text" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_CLIENT_ID" />
                 <field name="client_secret" type="password" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_CLIENT_SECRET" />
+                <field name="base_url" type="text" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_BASE_URL" />
                 <field name="auth_url" type="text" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_AUTH_URL" />
                 <field name="token_url" type="text" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_TOKEN_URL" />
                 <field name="userinfo_url" type="text" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_USERINFO_URL" />
