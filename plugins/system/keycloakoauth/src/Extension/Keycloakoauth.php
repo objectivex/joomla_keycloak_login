@@ -2,18 +2,19 @@
 
 namespace Joomla\Plugin\System\Keycloakoauth\Extension;
 
-use Joomla\CMS\Http\HttpFactory;
 use Joomla\CMS\Plugin\CMSPlugin;
 use Joomla\CMS\Session\Session;
 use Joomla\Event\Event;
 use Joomla\Event\SubscriberInterface;
 use Joomla\CMS\Log\Log;
-use Joomla\CMS\Uri\Uri;
+use Joomla\Plugin\System\Keycloakoauth\Service\KeycloakService;
 
 \defined('_JEXEC') or die;
 
 final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 {
+	private ?KeycloakService $keycloakService = null;
+
 	/**
 	 * Sprachdatei automatisch laden
 	 *
@@ -63,42 +64,31 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 			throw new \RuntimeException('Invalid CSRF token', 403);
 		}
 
-		$baseUrl = trim($this->getApplication()->getInput()->post->getString('base_url', ''));
+		$baseUrl = $this->getApplication()->getInput()->post->getString('base_url', '');
 
-		if (empty($baseUrl) || !filter_var($baseUrl, FILTER_VALIDATE_URL))
-		{
-			Log::add('KeycloakOAuth AJAX discovery called with invalid base_url: ' . $baseUrl, Log::WARNING, 'keycloakoauth');
-			throw new \RuntimeException('Invalid base_url', 400);
-		}
+		$service = $this->getKeycloakService();
+		Log::add('KeycloakOAuth discovery: ' . $service->getDiscoveryUrl($baseUrl), Log::DEBUG, 'keycloakoauth');
 
-		$baseUrl      = rtrim($baseUrl, '/');
-		$discoveryUrl = $baseUrl . '/.well-known/openid-configuration';
-
-		Log::add('KeycloakOAuth discovery: ' . $discoveryUrl, Log::DEBUG, 'keycloakoauth');
-
-		$http     = HttpFactory::getHttp();
-		$response = $http->get($discoveryUrl);
-
-		if ($response->code !== 200)
-		{
-			throw new \RuntimeException('Discovery request failed with HTTP ' . $response->code, 502);
-		}
-
-		$body = json_decode($response->body, true);
-
-		if (!is_array($body))
-		{
-			throw new \RuntimeException('Invalid JSON from discovery endpoint', 502);
-		}
+		$body = $service->discoverEndpoints($baseUrl);
 
 		$results   = (array) $event->getArgument('result', []);
 		$results[] = [
-			'authorization_endpoint' => $body['authorization_endpoint'] ?? '',
-			'token_endpoint'         => $body['token_endpoint']         ?? '',
-			'userinfo_endpoint'      => $body['userinfo_endpoint']      ?? '',
+			'authorization_endpoint' => $body['authorization_endpoint'],
+			'token_endpoint'         => $body['token_endpoint'],
+			'userinfo_endpoint'      => $body['userinfo_endpoint'],
 		];
 		$event->setArgument('result', $results);
 
 		Log::add('KeycloakOAuth discovery successful', Log::DEBUG, 'keycloakoauth');
+	}
+
+	private function getKeycloakService(): KeycloakService
+	{
+		if ($this->keycloakService === null)
+		{
+			$this->keycloakService = new KeycloakService();
+		}
+
+		return $this->keycloakService;
 	}
 }
