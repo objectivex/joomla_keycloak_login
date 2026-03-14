@@ -231,6 +231,13 @@ final class KeycloakService
 			throw new \RuntimeException('Invalid userinfo endpoint', 400);
 		}
 
+		$parts = parse_url($userinfoEndpoint);
+
+		if ($parts === false || !isset($parts['scheme']) || !in_array(strtolower($parts['scheme']), ['http', 'https'], true))
+		{
+			throw new \RuntimeException('Invalid userinfo endpoint', 400);
+		}
+
 		if ($accessToken === '')
 		{
 			throw new \RuntimeException('Missing access token', 500);
