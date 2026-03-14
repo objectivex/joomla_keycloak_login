@@ -83,6 +83,9 @@ class DiscoverEndpointsButtonField extends FormField
 				if (!response || response.success === false) {
 					throw new Error(response ? response.message : 'Unknown error');
 				}
+				if (!response.data || !Array.isArray(response.data) || response.data.length === 0) {
+					throw new Error('Invalid response format: missing endpoints data');
+				}
 				var data = response.data[0];
 				var authUrlInput     = document.querySelector('[name="jform[params][auth_url]"]');
 				var tokenUrlInput    = document.querySelector('[name="jform[params][token_url]"]');
