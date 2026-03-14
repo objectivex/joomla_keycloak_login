@@ -17,7 +17,7 @@ class DiscoverEndpointsButtonField extends FormField
 	{
 		$token   = Factory::getApplication()->getFormToken();
 		$ajaxUrl = htmlspecialchars(
-			Uri::root() . 'index.php?option=com_ajax&plugin=keycloakoauth&group=system&format=json&' . $token . '=1',
+			Uri::base() . 'index.php?option=com_ajax&plugin=keycloakoauth&group=system&format=json',
 			ENT_QUOTES,
 			'UTF-8'
 		);
@@ -27,31 +27,79 @@ class DiscoverEndpointsButtonField extends FormField
 		$error   = htmlspecialchars(Text::_('PLG_SYSTEM_KEYCLOAKOAUTH_DISCOVER_ENDPOINTS_ERROR'), ENT_QUOTES, 'UTF-8');
 
 		return <<<HTML
-<button type="button" class="btn btn-secondary" id="keycloak-discover-endpoints-btn" data-ajax-url="{$ajaxUrl}">
+<button type="button" class="btn btn-secondary" id="keycloak-discover-endpoints-btn" data-ajax-url="{$ajaxUrl}" data-token="{$token}" disabled>
 	{$label}
 </button>
 <span id="keycloak-discover-endpoints-result" class="ms-2"></span>
 <script>
 (function () {
-	var btn    = document.getElementById('keycloak-discover-endpoints-btn');
-	var result = document.getElementById('keycloak-discover-endpoints-result');
+	var btn              = document.getElementById('keycloak-discover-endpoints-btn');
+	var result           = document.getElementById('keycloak-discover-endpoints-result');
+	var baseUrlInput     = document.querySelector('[name="jform[params][base_url]"]');
+
+	function isValidUrl(value) {
+		try {
+			var u = new URL(value);
+			return u.protocol === 'http:' || u.protocol === 'https:';
+		} catch (e) {
+			return false;
+		}
+	}
+
+	function updateButtonState() {
+		btn.disabled = !isValidUrl(baseUrlInput ? baseUrlInput.value.trim() : '');
+		if (!btn.disabled) {
+			result.textContent = '';
+			result.className   = 'ms-2';
+		}
+	}
+
+	if (baseUrlInput) {
+		baseUrlInput.addEventListener('input', updateButtonState);
+		baseUrlInput.addEventListener('change', updateButtonState);
+		updateButtonState();
+	}
 
 	btn.addEventListener('click', function () {
-		btn.disabled      = true;
+		btn.disabled       = true;
 		result.textContent = '';
-		result.className  = 'ms-2';
+		result.className   = 'ms-2';
 
-		fetch(btn.dataset.ajaxUrl, {method: 'POST'})
-			.then(function (r) { return r.json(); })
-			.then(function () {
+		var baseUrl = baseUrlInput.value.trim();
+		var body    = new URLSearchParams();
+		body.append(btn.dataset.token, '1');
+		body.append('base_url', baseUrl);
+
+		fetch(btn.dataset.ajaxUrl, {
+				method:  'POST',
+				headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+				body:    body.toString()
+			})
+			.then(function (r) {
+				if (!r.ok) { throw new Error('HTTP ' + r.status); }
+				return r.json();
+			})
+			.then(function (response) {
+				if (!response || response.success === false) {
+					throw new Error(response ? response.message : 'Unknown error');
+				}
+				var data = response.data[0];
+				authUrlInput     = document.querySelector('[name="jform[params][auth_url]"]');
+				tokenUrlInput    = document.querySelector('[name="jform[params][token_url]"]');
+				userinfoUrlInput = document.querySelector('[name="jform[params][userinfo_url]"]');
+
+				if (authUrlInput)     { authUrlInput.value     = data.authorization_endpoint || ''; }
+				if (tokenUrlInput)    { tokenUrlInput.value    = data.token_endpoint         || ''; }
+				if (userinfoUrlInput) { userinfoUrlInput.value = data.userinfo_endpoint      || ''; }
+
 				result.textContent = '{$success}';
 				result.className   = 'ms-2 text-success';
 			})
-			.catch(function () {
-				result.textContent = '{$error}';
+			.catch(function (e) {
+				result.textContent = '{$error}' + (e.message ? ' (' + e.message + ')' : '');
 				result.className   = 'ms-2 text-danger';
 			})
-			.finally(function () { btn.disabled = false; });
+			.finally(function () { updateButtonState(); });
 	});
 }());
 </script>

@@ -25,13 +25,17 @@
         <fields name="params" addfieldprefix="Joomla\Plugin\System\Keycloakoauth\Field">
             <fieldset name="oauth" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELDSET_OAUTH">
                 <field name="client_id" type="text" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_CLIENT_ID" />
-                <field name="client_secret" type="password" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_CLIENT_SECRET" />
+                <field name="client_secret" type="password"
+                    label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_CLIENT_SECRET" />
                 <field name="base_url" type="text" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_BASE_URL" />
+                <field name="discover_endpoints_button" type="DiscoverEndpointsButton"
+                    label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_DISCOVER_ENDPOINTS_BUTTON" />
                 <field name="auth_url" type="text" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_AUTH_URL" />
                 <field name="token_url" type="text" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_TOKEN_URL" />
-                <field name="userinfo_url" type="text" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_USERINFO_URL" />
-                <field name="redirect_uri" type="text" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_REDIRECT_URI" />
-                <field name="discover_endpoints_button" type="DiscoverEndpointsButton" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_DISCOVER_ENDPOINTS_BUTTON" />
+                <field name="userinfo_url" type="text"
+                    label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_USERINFO_URL" />
+                <field name="redirect_uri" type="text"
+                    label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_REDIRECT_URI" />
             </fieldset>
         </fields>
     </config>
