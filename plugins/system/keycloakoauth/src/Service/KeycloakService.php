@@ -11,6 +11,27 @@ final class KeycloakService
 	private const OAUTH_SCOPE = 'openid profile email';
 
 	/**
+	 * Validates that the given URL is a well-formed HTTP or HTTPS URL.
+	 *
+	 * @param  string  $url
+	 *
+	 * @return bool
+	 */
+	private function isValidHttpUrl(string $url): bool
+	{
+		$url = trim($url);
+
+		if ($url === '' || !filter_var($url, FILTER_VALIDATE_URL))
+		{
+			return false;
+		}
+
+		$scheme = parse_url($url, PHP_URL_SCHEME);
+
+		return \in_array(\strtolower((string) $scheme), ['http', 'https'], true);
+	}
+
+	/**
 	 * Führt die OIDC-Discovery gegen Keycloak aus.
 	 *
 	 * @param string $baseUrl
@@ -102,7 +123,7 @@ final class KeycloakService
 		$redirectUri           = trim($redirectUri);
 		$state                 = trim($state);
 
-		if ($authorizationEndpoint === '' || !filter_var($authorizationEndpoint, FILTER_VALIDATE_URL))
+		if (!$this->isValidHttpUrl($authorizationEndpoint))
 		{
 			throw new \RuntimeException('Invalid authorization endpoint', 400);
 		}
@@ -112,7 +133,7 @@ final class KeycloakService
 			throw new \RuntimeException('Missing client_id', 400);
 		}
 
-		if ($redirectUri === '' || !filter_var($redirectUri, FILTER_VALIDATE_URL))
+		if (!$this->isValidHttpUrl($redirectUri))
 		{
 			throw new \RuntimeException('Invalid redirect_uri', 400);
 		}
