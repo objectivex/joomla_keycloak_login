@@ -3,17 +3,16 @@
 namespace Joomla\Plugin\System\Keycloakoauth\Extension;
 
 use Joomla\CMS\Access\Access;
-use Joomla\CMS\Plugin\CMSPlugin;
 use Joomla\CMS\Factory;
-use Joomla\CMS\User\UserFactoryInterface;
-
+use Joomla\CMS\Language\Text;
+use Joomla\CMS\Log\Log;
+use Joomla\CMS\Plugin\CMSPlugin;
 use Joomla\CMS\Session\Session;
+use Joomla\CMS\Uri\Uri;
+use Joomla\CMS\User\UserFactoryInterface;
+use Joomla\Database\DatabaseInterface;
 use Joomla\Event\Event;
 use Joomla\Event\SubscriberInterface;
-use Joomla\CMS\Log\Log;
-use Joomla\CMS\Language\Text;
-use Joomla\CMS\Uri\Uri;
-use Joomla\Database\DatabaseInterface;
 use Joomla\Plugin\System\Keycloakoauth\Service\AdminLoginSessionService;
 use Joomla\Plugin\System\Keycloakoauth\Service\KeycloakService;
 
@@ -80,7 +79,7 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 		}
 
 		$this->normalizeIntegrationSettings();
-		Log::add('KeycloakOAuth initialized', Log::DEBUG, 'joomla');
+		Log::add('KeycloakOAuth initialized', Log::DEBUG, 'keycloakoauth');
 
 		if ($this->isMappingCallbackRequest())
 		{
@@ -184,13 +183,12 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 
 			return;
 		}
-	
- 		if ($input->getMethod() !== 'POST')
- 		{
-			Log::add('KeycloakOAuth AJAX called with invalid HTTP method', Log::WARNING, 'keycloakoauth');
- 			throw new \RuntimeException('Method Not Allowed', 405);
- 		}
 
+		if ($input->getMethod() !== 'POST')
+		{
+			Log::add('KeycloakOAuth AJAX called with invalid HTTP method', Log::WARNING, 'keycloakoauth');
+			throw new \RuntimeException('Method Not Allowed', 405);
+		}
 
 		if (!Session::checkToken('post'))
 		{
@@ -367,6 +365,7 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 
 	private function forwardAdminCallbackToAdministratorClient(): void
 	{
+		/** @var \Joomla\CMS\Application\CMSApplication $app */
 		$app   = $this->getApplication();
 		$input = $app->getInput();
 
@@ -501,12 +500,7 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 
 		$hasCallbackMarker = $input->getInt('keycloakoauth_mapping_callback', 0) === 1;
 
-		if (!$isAjaxRoute && !$hasCallbackMarker)
-		{
-			return false;
-		}
-
-		return true;
+		return $isAjaxRoute || $hasCallbackMarker;
 	}
 
 	private function handleMappingCallbackRequest(): void
