@@ -48,6 +48,7 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 	 */
 	public function onApplicationInitialise(): void
 	{
+		$this->normalizeIntegrationSettings();
 		Log::add('KeycloakOAuth initialized', Log::DEBUG, 'joomla');
 
 		if ($this->isMappingCallbackRequest())
@@ -492,6 +493,28 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 		}
 
 		return $secret;
+	}
+
+	private function normalizeIntegrationSettings(): void
+	{
+		$this->params->set('allow_normal_user_login', $this->normalizeBooleanParamValue($this->params->get('allow_normal_user_login', 0)));
+		$this->params->set('allow_admin_user_login', $this->normalizeBooleanParamValue($this->params->get('allow_admin_user_login', 0)));
+		$this->params->set('allow_new_user_creation_on_logon', $this->normalizeBooleanParamValue($this->params->get('allow_new_user_creation_on_logon', 0)));
+	}
+
+	/**
+	 * @param mixed $value
+	 */
+	private function normalizeBooleanParamValue($value): int
+	{
+		$value = is_string($value) ? strtolower(trim($value)) : $value;
+
+		if ($value === 1 || $value === '1' || $value === true || $value === 'true' || $value === 'on' || $value === 'yes')
+		{
+			return 1;
+		}
+
+		return 0;
 	}
 
 	private function getKeycloakService(): KeycloakService

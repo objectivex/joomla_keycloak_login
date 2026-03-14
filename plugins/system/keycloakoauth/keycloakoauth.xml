@@ -49,6 +49,21 @@
                 <field name="group_mappings" type="GroupMappings"
                     label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_GROUP_MAPPINGS" />
             </fieldset>
+            <fieldset name="integration_settings"
+                label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELDSET_INTEGRATION_SETTINGS">
+                <field name="allow_normal_user_login" type="PersistedCheckbox"
+                    label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_ALLOW_NORMAL_USER_LOGIN"
+                    default="0"
+                    value="1" />
+                <field name="allow_admin_user_login" type="PersistedCheckbox"
+                    label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_ALLOW_ADMIN_USER_LOGIN"
+                    default="0"
+                    value="1" />
+                <field name="allow_new_user_creation_on_logon" type="PersistedCheckbox"
+                    label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_ALLOW_NEW_USER_CREATION_ON_LOGON"
+                    default="0"
+                    value="1" />
+            </fieldset>
         </fields>
     </config>
 </extension>

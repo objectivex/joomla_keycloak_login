@@ -18,6 +18,7 @@ class GroupMappingsField extends FormField
 		$id = htmlspecialchars($this->id, ENT_QUOTES, 'UTF-8');
 		$name = htmlspecialchars($this->name, ENT_QUOTES, 'UTF-8');
 		$savedValue = is_string($this->value) ? $this->value : '';
+		$safeSavedValue = htmlspecialchars($savedValue, ENT_QUOTES, 'UTF-8');
 
 		$groups = $this->getGroups();
 		$initialMappings = $this->parseMappings($savedValue);
@@ -51,7 +52,7 @@ class GroupMappingsField extends FormField
 	</div>
 	<div id="{$id}_rows"></div>
 	<button type="button" class="btn btn-secondary" id="{$id}_add">{$addLabel}</button>
-	<input type="hidden" id="{$id}_value" name="{$name}" value="" />
+	<input type="hidden" id="{$id}_value" name="{$name}" value="{$safeSavedValue}" />
 </div>
 <script>
 (function () {
