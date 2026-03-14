@@ -257,8 +257,8 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 		$heading = htmlspecialchars(Text::_('PLG_SYSTEM_KEYCLOAKOAUTH_MAPPING_POPUP_FIELDS_HEADING'), ENT_QUOTES, 'UTF-8');
 		$buttonText = htmlspecialchars(Text::_('PLG_SYSTEM_KEYCLOAKOAUTH_MAPPING_POPUP_USE_FIELDS'), ENT_QUOTES, 'UTF-8');
 		$noFields = htmlspecialchars(Text::_('PLG_SYSTEM_KEYCLOAKOAUTH_MAPPING_POPUP_NO_FIELDS'), ENT_QUOTES, 'UTF-8');
-		$tableHeaderField = htmlspecialchars('Field', ENT_QUOTES, 'UTF-8');
-		$tableHeaderValue = htmlspecialchars('Value', ENT_QUOTES, 'UTF-8');
+		$tableHeaderField = htmlspecialchars(Text::_('PLG_SYSTEM_KEYCLOAKOAUTH_MAPPING_POPUP_TABLE_FIELD'), ENT_QUOTES, 'UTF-8');
+		$tableHeaderValue = htmlspecialchars(Text::_('PLG_SYSTEM_KEYCLOAKOAUTH_MAPPING_POPUP_TABLE_VALUE'), ENT_QUOTES, 'UTF-8');
 
 		$rowsHtml = '';
 
@@ -284,11 +284,17 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 			}
 			elseif (is_bool($value))
 			{
-				$safeValue = htmlspecialchars($value ? 'true' : 'false', ENT_QUOTES, 'UTF-8');
+				$safeValue = htmlspecialchars(
+					$value
+						? Text::_('PLG_SYSTEM_KEYCLOAKOAUTH_MAPPING_POPUP_BOOLEAN_TRUE')
+						: Text::_('PLG_SYSTEM_KEYCLOAKOAUTH_MAPPING_POPUP_BOOLEAN_FALSE'),
+					ENT_QUOTES,
+					'UTF-8'
+				);
 			}
 			elseif ($value === null)
 			{
-				$safeValue = htmlspecialchars('null', ENT_QUOTES, 'UTF-8');
+				$safeValue = htmlspecialchars(Text::_('PLG_SYSTEM_KEYCLOAKOAUTH_MAPPING_POPUP_NULL'), ENT_QUOTES, 'UTF-8');
 			}
 			else
 			{
@@ -300,7 +306,7 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 
 		if ($rowsHtml === '')
 		{
-			$rowsHtml = '<tr><td colspan="2">' . htmlspecialchars('No data returned.', ENT_QUOTES, 'UTF-8') . '</td></tr>';
+			$rowsHtml = '<tr><td colspan="2">' . htmlspecialchars(Text::_('PLG_SYSTEM_KEYCLOAKOAUTH_MAPPING_POPUP_NO_DATA'), ENT_QUOTES, 'UTF-8') . '</td></tr>';
 		}
 
 		$fieldsJson = json_encode(array_values($fields), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
