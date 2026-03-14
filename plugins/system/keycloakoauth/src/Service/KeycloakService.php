@@ -56,10 +56,35 @@ final class KeycloakService
 			throw new \RuntimeException('Invalid JSON from discovery endpoint', 502);
 		}
 
+		$requiredKeys = [
+			'authorization_endpoint',
+			'token_endpoint',
+			'userinfo_endpoint',
+		];
+
+		$endpoints = [];
+
+		foreach ($requiredKeys as $key)
+		{
+			if (!isset($body[$key]) || !\is_string($body[$key]) || trim($body[$key]) === '')
+			{
+				throw new \RuntimeException('Discovery document missing required field: ' . $key, 502);
+			}
+
+			$value = trim($body[$key]);
+
+			if (!filter_var($value, FILTER_VALIDATE_URL))
+			{
+				throw new \RuntimeException('Discovery document field "' . $key . '" is not a valid URL', 502);
+			}
+
+			$endpoints[$key] = $value;
+		}
+
 		return [
-			'authorization_endpoint' => (string) ($body['authorization_endpoint'] ?? ''),
-			'token_endpoint'         => (string) ($body['token_endpoint'] ?? ''),
-			'userinfo_endpoint'      => (string) ($body['userinfo_endpoint'] ?? ''),
+			'authorization_endpoint' => $endpoints['authorization_endpoint'],
+			'token_endpoint'         => $endpoints['token_endpoint'],
+			'userinfo_endpoint'      => $endpoints['userinfo_endpoint'],
 		];
 	}
 
