@@ -368,23 +368,47 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 
 	private function forwardAdminCallbackToAdministratorClient(): void
 	{
-		$queryParams = $_GET;
+		$app   = $this->getApplication();
+		$input = $app->getInput();
 
-		if (!is_array($queryParams))
+		// Only forward expected OAuth-related parameters instead of all raw $_GET values
+		$allowedKeys = [
+			'code',
+			'state',
+			'session_state',
+			'iss',
+		];
+
+		$queryParams = [];
+
+		foreach ($allowedKeys as $key)
 		{
-			$queryParams = [];
+			$value = $input->getString($key, null);
+
+			if ($value !== null && $value !== '')
+			{
+				$queryParams[$key] = $value;
+			}
 		}
 
 		$queryParams['keycloakoauth_admin_callback'] = '1';
 
 		$adminBase = rtrim(Uri::root(), '/') . '/administrator/index.php';
-		$query = http_build_query($queryParams, '', '&', PHP_QUERY_RFC3986);
+		$query     = http_build_query($queryParams, '', '&', PHP_QUERY_RFC3986);
 		$targetUrl = $adminBase . ($query !== '' ? '?' . $query : '');
 
-		Log::add('KeycloakOAuth forwarding admin callback to administrator client: ' . $targetUrl, Log::WARNING, 'keycloakoauth');
+		// Avoid logging sensitive parameter values such as OAuth code/state
+		$forwardedParamNames = implode(', ', array_keys($queryParams));
+		Log::add(
+			'KeycloakOAuth forwarding admin callback to administrator client: '
+			. $adminBase
+			. ' with params [' . $forwardedParamNames . ']',
+			Log::WARNING,
+			'keycloakoauth'
+		);
 
-		@header('Location: ' . $targetUrl, true, 303);
-		$this->getApplication()->close();
+		$app->redirect($targetUrl);
+		$app->close();
 	}
 
 	private function handleMappingTryConnectionTask(Event $event): void
