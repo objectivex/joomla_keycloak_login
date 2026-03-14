@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <extension type="plugin" group="system" method="upgrade">
-    <name>Keycloak OAuth Login Addon</name>
+    <name>plg_system_keycloakoauth</name>
     <author>Sebastian Meyer</author>
     <creationDate>2026-03-14</creationDate>
     <copyright>2026 Sebastian Meyer</copyright>
@@ -21,4 +21,16 @@
         <language tag="en-GB">language/en-GB/plg_system_keycloakoauth.ini</language>
         <language tag="en-GB">language/en-GB/plg_system_keycloakoauth.sys.ini</language>
     </languages>
+    <config>
+        <fields name="params">
+            <fieldset name="oauth" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELDSET_OAUTH">
+                <field name="client_id" type="text" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_CLIENT_ID" />
+                <field name="client_secret" type="password" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_CLIENT_SECRET" />
+                <field name="auth_url" type="text" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_AUTH_URL" />
+                <field name="token_url" type="text" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_TOKEN_URL" />
+                <field name="userinfo_url" type="text" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_USERINFO_URL" />
+                <field name="redirect_uri" type="text" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_REDIRECT_URI" />
+            </fieldset>
+        </fields>
+    </config>
 </extension>
