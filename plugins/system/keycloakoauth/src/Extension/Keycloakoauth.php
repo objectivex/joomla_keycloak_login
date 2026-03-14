@@ -173,6 +173,14 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 
 		if ($task === 'admin_callback')
 		{
+			$app = $this->getApplication();
+
+			if (!$app->isClient('administrator'))
+			{
+				Log::add('KeycloakOAuth admin callback called from non-administrator client', Log::WARNING, 'keycloakoauth');
+				throw new \RuntimeException('Not authorized', 403);
+			}
+
 			$this->handleAdminCallbackRequest();
 
 			return;
