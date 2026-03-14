@@ -84,9 +84,9 @@ class DiscoverEndpointsButtonField extends FormField
 					throw new Error(response ? response.message : 'Unknown error');
 				}
 				var data = response.data[0];
-				authUrlInput     = document.querySelector('[name="jform[params][auth_url]"]');
-				tokenUrlInput    = document.querySelector('[name="jform[params][token_url]"]');
-				userinfoUrlInput = document.querySelector('[name="jform[params][userinfo_url]"]');
+				var authUrlInput     = document.querySelector('[name="jform[params][auth_url]"]');
+				var tokenUrlInput    = document.querySelector('[name="jform[params][token_url]"]');
+				var userinfoUrlInput = document.querySelector('[name="jform[params][userinfo_url]"]');
 
 				if (authUrlInput)     { authUrlInput.value     = data.authorization_endpoint || ''; }
 				if (tokenUrlInput)    { tokenUrlInput.value    = data.token_endpoint         || ''; }
