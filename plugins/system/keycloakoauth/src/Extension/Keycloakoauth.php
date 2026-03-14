@@ -57,8 +57,16 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 	public function onAjaxKeycloakoauth(Event $event): void
 	{
 		Log::add('KeycloakOAuth AJAX discovery called', Log::DEBUG, 'keycloakoauth');
+	
+		$input = $this->getApplication()->getInput();
+ 		if ($input->getMethod() !== 'POST')
+ 		{
+ 			Log::add('KeycloakOAuth AJAX discovery called with invalid HTTP method', Log::WARNING, 'keycloakoauth');
+ 			throw new \RuntimeException('Method Not Allowed', 405);
+ 		}
 
-		if (!Session::checkToken())
+
+		if (!Session::checkToken('post'))
 		{
 			Log::add('KeycloakOAuth AJAX discovery called with invalid CSRF token', Log::WARNING, 'keycloakoauth');
 			throw new \RuntimeException('Invalid CSRF token', 403);
