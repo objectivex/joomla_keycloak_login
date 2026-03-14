@@ -8,6 +8,29 @@ use Joomla\CMS\Http\HttpFactory;
 
 final class KeycloakService
 {
+	private const OAUTH_SCOPE = 'openid profile email';
+
+	/**
+	 * Validates that the given URL is a well-formed HTTP or HTTPS URL.
+	 *
+	 * @param  string  $url
+	 *
+	 * @return bool
+	 */
+	private function isValidHttpUrl(string $url): bool
+	{
+		$url = trim($url);
+
+		if ($url === '' || !filter_var($url, FILTER_VALIDATE_URL))
+		{
+			return false;
+		}
+
+		$scheme = parse_url($url, PHP_URL_SCHEME);
+
+		return \in_array(\strtolower((string) $scheme), ['http', 'https'], true);
+	}
+
 	/**
 	 * Führt die OIDC-Discovery gegen Keycloak aus.
 	 *
@@ -91,5 +114,169 @@ final class KeycloakService
 	public function getDiscoveryUrl(string $baseUrl): string
 	{
 		return rtrim(trim($baseUrl), '/') . '/.well-known/openid-configuration';
+	}
+
+	public function buildAuthorizationUrl(string $authorizationEndpoint, string $clientId, string $redirectUri, string $state): string
+	{
+		$authorizationEndpoint = trim($authorizationEndpoint);
+		$clientId              = trim($clientId);
+		$redirectUri           = trim($redirectUri);
+		$state                 = trim($state);
+
+		if (!$this->isValidHttpUrl($authorizationEndpoint))
+		{
+			throw new \RuntimeException('Invalid authorization endpoint', 400);
+		}
+
+		if ($clientId === '')
+		{
+			throw new \RuntimeException('Missing client_id', 400);
+		}
+
+		if (!$this->isValidHttpUrl($redirectUri))
+		{
+			throw new \RuntimeException('Invalid redirect_uri', 400);
+		}
+
+		if ($state === '')
+		{
+			throw new \RuntimeException('Missing OAuth state', 500);
+		}
+
+		$query = http_build_query([
+			'response_type' => 'code',
+			'client_id'     => $clientId,
+			'redirect_uri'  => $redirectUri,
+			'scope'         => self::OAUTH_SCOPE,
+			'state'         => $state,
+		], '', '&', PHP_QUERY_RFC3986);
+
+		$separator = strpos($authorizationEndpoint, '?') === false ? '?' : '&';
+
+		return $authorizationEndpoint . $separator . $query;
+	}
+
+	public function exchangeAuthorizationCodeForAccessToken(
+		string $tokenEndpoint,
+		string $clientId,
+		string $clientSecret,
+		string $redirectUri,
+		string $authorizationCode
+	): string {
+		$tokenEndpoint     = trim($tokenEndpoint);
+		$clientId          = trim($clientId);
+		$redirectUri       = trim($redirectUri);
+		$authorizationCode = trim($authorizationCode);
+
+		if ($tokenEndpoint === '' || !filter_var($tokenEndpoint, FILTER_VALIDATE_URL))
+		{
+			throw new \RuntimeException('Invalid token endpoint', 400);
+		}
+
+		$scheme = parse_url($tokenEndpoint, PHP_URL_SCHEME);
+
+		if ($scheme === null || ($scheme !== 'http' && $scheme !== 'https'))
+		{
+			throw new \RuntimeException('Invalid token endpoint scheme', 400);
+		}
+
+		if ($clientId === '' || $clientSecret === '' || $redirectUri === '' || $authorizationCode === '')
+		{
+			throw new \RuntimeException('Missing token exchange parameters', 400);
+		}
+
+		$http = HttpFactory::getHttp();
+		$body = http_build_query([
+			'grant_type'    => 'authorization_code',
+			'code'          => $authorizationCode,
+			'redirect_uri'  => $redirectUri,
+			'client_id'     => $clientId,
+			'client_secret' => $clientSecret,
+		], '', '&', PHP_QUERY_RFC3986);
+
+		$response = $http->post(
+			$tokenEndpoint,
+			$body,
+			[
+				'Content-Type' => 'application/x-www-form-urlencoded',
+				'Accept'       => 'application/json',
+			]
+		);
+
+		if ($response->code < 200 || $response->code >= 300)
+		{
+			throw new \RuntimeException('Token request failed with HTTP ' . $response->code, 502);
+		}
+
+		$tokenData = json_decode($response->body, true);
+
+		if (!is_array($tokenData) || !isset($tokenData['access_token']) || !is_string($tokenData['access_token']) || trim($tokenData['access_token']) === '')
+		{
+			throw new \RuntimeException('Token response missing access_token', 502);
+		}
+
+		return trim($tokenData['access_token']);
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	public function fetchUserInfo(string $userinfoEndpoint, string $accessToken): array
+	{
+		$userinfoEndpoint = trim($userinfoEndpoint);
+		$accessToken      = trim($accessToken);
+
+		if ($userinfoEndpoint === '' || !filter_var($userinfoEndpoint, FILTER_VALIDATE_URL))
+		{
+			throw new \RuntimeException('Invalid userinfo endpoint', 400);
+		}
+
+		$parts = parse_url($userinfoEndpoint);
+
+		if ($parts === false || !isset($parts['scheme']) || !in_array(strtolower($parts['scheme']), ['http', 'https'], true))
+		{
+			throw new \RuntimeException('Invalid userinfo endpoint', 400);
+		}
+
+		if ($accessToken === '')
+		{
+			throw new \RuntimeException('Missing access token', 500);
+		}
+
+		$http = HttpFactory::getHttp();
+		$response = $http->get($userinfoEndpoint, [
+			'Authorization' => 'Bearer ' . $accessToken,
+			'Accept'        => 'application/json',
+		]);
+
+		if ($response->code < 200 || $response->code >= 300)
+		{
+			throw new \RuntimeException('Userinfo request failed with HTTP ' . $response->code, 502);
+		}
+
+		$userInfo = json_decode($response->body, true);
+
+		if (!is_array($userInfo))
+		{
+			throw new \RuntimeException('Invalid JSON from userinfo endpoint', 502);
+		}
+
+		return $userInfo;
+	}
+
+	/**
+	 * @param array<string, mixed> $userInfo
+	 *
+	 * @return string[]
+	 */
+	public function extractTopLevelFieldNames(array $userInfo): array
+	{
+		$fields = array_keys($userInfo);
+		$fields = array_filter($fields, static fn ($field) => is_string($field) && trim($field) !== '');
+		$fields = array_values(array_unique(array_map(static fn ($field) => trim($field), $fields)));
+
+		natcasesort($fields);
+
+		return array_values($fields);
 	}
 }

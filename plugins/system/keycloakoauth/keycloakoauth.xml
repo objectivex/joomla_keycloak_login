@@ -37,6 +37,33 @@
                 <field name="redirect_uri" type="text"
                     label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_REDIRECT_URI" />
             </fieldset>
+            <fieldset name="mapping" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELDSET_MAPPING">
+                <field name="username_mapping" type="MappingSelect"
+                    label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_USERNAME_MAPPING" />
+                <field name="email_mapping" type="MappingSelect"
+                    label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_EMAIL_MAPPING" />
+                <field name="try_connection_button" type="TryConnectionButton"
+                    label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_TRY_CONNECTION_BUTTON" />
+            </fieldset>
+            <fieldset name="group_mapping" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELDSET_GROUP_MAPPING">
+                <field name="group_mappings" type="GroupMappings"
+                    label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_GROUP_MAPPINGS" />
+            </fieldset>
+            <fieldset name="integration_settings"
+                label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELDSET_INTEGRATION_SETTINGS">
+                <field name="allow_normal_user_login" type="PersistedCheckbox"
+                    label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_ALLOW_NORMAL_USER_LOGIN"
+                    default="0"
+                    value="1" />
+                <field name="allow_admin_user_login" type="PersistedCheckbox"
+                    label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_ALLOW_ADMIN_USER_LOGIN"
+                    default="0"
+                    value="1" />
+                <field name="allow_new_user_creation_on_logon" type="PersistedCheckbox"
+                    label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_ALLOW_NEW_USER_CREATION_ON_LOGON"
+                    default="0"
+                    value="1" />
+            </fieldset>
         </fields>
     </config>
 </extension>
