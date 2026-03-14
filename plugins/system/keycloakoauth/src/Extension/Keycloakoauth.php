@@ -169,12 +169,28 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 		$state = $input->getString('state', '');
 		$hasCodeOrError = $input->getString('code', '') !== '' || $input->getString('error', '') !== '';
 
+		// Require an OAuth code or error parameter
 		if (!$hasCodeOrError)
 		{
 			return false;
 		}
 
+		// Require a mapping state prefix to distinguish mapping callbacks
 		if ($state === '' || strpos($state, 'kcmap_') !== 0)
+		{
+			return false;
+		}
+
+		// Further constrain detection so we only treat requests as mapping callbacks
+		// when they are sent to our expected endpoint or include the explicit marker
+		// added to the redirect URI.
+		$isAjaxRoute = $input->getCmd('option') === 'com_ajax'
+			&& $input->getCmd('plugin') === 'keycloakoauth'
+			&& $input->getCmd('task') === 'mapping_callback';
+
+		$hasCallbackMarker = $input->getInt('keycloakoauth_mapping_callback', 0) === 1;
+
+		if (!$isAjaxRoute && !$hasCallbackMarker)
 		{
 			return false;
 		}
