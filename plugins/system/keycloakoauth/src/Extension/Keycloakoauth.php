@@ -2,14 +2,19 @@
 
 namespace Joomla\Plugin\System\Keycloakoauth\Extension;
 
+use Joomla\CMS\Access\Access;
 use Joomla\CMS\Plugin\CMSPlugin;
 use Joomla\CMS\Factory;
+use Joomla\CMS\User\UserFactoryInterface;
+
 use Joomla\CMS\Session\Session;
 use Joomla\Event\Event;
 use Joomla\Event\SubscriberInterface;
 use Joomla\CMS\Log\Log;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Uri\Uri;
+use Joomla\Database\DatabaseInterface;
+use Joomla\Plugin\System\Keycloakoauth\Service\AdminLoginSessionService;
 use Joomla\Plugin\System\Keycloakoauth\Service\KeycloakService;
 
 \defined('_JEXEC') or die;
@@ -17,6 +22,7 @@ use Joomla\Plugin\System\Keycloakoauth\Service\KeycloakService;
 final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 {
 	private ?KeycloakService $keycloakService = null;
+	private ?AdminLoginSessionService $adminLoginSessionService = null;
 
 	/**
 	 * Sprachdatei automatisch laden
@@ -36,6 +42,7 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 	{
 		return [
 			'onApplicationInitialise' => 'onApplicationInitialise',
+			'onBeforeCompileHead'    => 'onBeforeCompileHead',
 			'onAjaxKeycloakoauth'     => 'onAjaxKeycloakoauth',
 		];
 	}
@@ -48,6 +55,31 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 	 */
 	public function onApplicationInitialise(): void
 	{
+		$input = $this->getApplication()->getInput();
+		$state = $input->getString('state', '');
+		$code = $input->getString('code', '');
+		$error = $input->getString('error', '');
+		$hasCodeOrError = $code !== '' || $error !== '';
+
+		if (strpos($state, 'kcadmin_') === 0 && $hasCodeOrError && !$this->getApplication()->isClient('administrator'))
+		{
+			Log::add(
+				'KeycloakOAuth admin callback reached non-admin client: client=' . ($this->getApplication()->isClient('site') ? 'site' : 'unknown')
+					. ', option=' . $input->getCmd('option', '-')
+					. ', task=' . $input->getCmd('task', '-')
+					. ', state=' . $state,
+				Log::WARNING,
+				'keycloakoauth'
+			);
+
+			$this->forwardAdminCallbackToAdministratorClient();
+		}
+
+		if ($this->isAdminCallbackRequest())
+		{
+			$this->handleAdminCallbackRequest();
+		}
+
 		$this->normalizeIntegrationSettings();
 		Log::add('KeycloakOAuth initialized', Log::DEBUG, 'joomla');
 
@@ -55,6 +87,68 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 		{
 			$this->handleMappingCallbackRequest();
 		}
+	}
+
+	public function onBeforeCompileHead(): void
+	{
+		$app = $this->getApplication();
+
+		if (!$app->isClient('administrator') || !$app->getIdentity()->guest)
+		{
+			return;
+		}
+
+		if (!$this->isAdminLoginAvailable() || !$this->isAdministratorLoginPage())
+		{
+			return;
+		}
+
+		try
+		{
+			$buttonUrl = $this->getKeycloakService()->buildAuthorizationUrl(
+				(string) $this->params->get('auth_url', ''),
+				(string) $this->params->get('client_id', ''),
+				$this->getAdminRedirectUri(),
+				$this->createAdminState()
+			);
+
+			Log::add('KeycloakOAuth admin login button URL: ' . $buttonUrl, Log::DEBUG, 'keycloakoauth');
+		}
+		catch (\Throwable $exception)
+		{
+			Log::add('KeycloakOAuth admin login button could not be rendered: ' . $exception->getMessage(), Log::WARNING, 'keycloakoauth');
+
+			return;
+		}
+
+		$document = Factory::getDocument();
+		$buttonLabel = Text::_('PLG_SYSTEM_KEYCLOAKOAUTH_ADMIN_LOGIN_BUTTON');
+
+		$document->addStyleDeclaration(
+			'.keycloakoauth-admin-login{margin-top:1rem;text-align:center;}'
+			. '.keycloakoauth-admin-login__button{display:inline-block;padding:0.75rem 1.25rem;border-radius:0.375rem;background:#0f5ea8;color:#fff;text-decoration:none;font-weight:600;}'
+			. '.keycloakoauth-admin-login__button:hover,.keycloakoauth-admin-login__button:focus{background:#0b4b86;color:#fff;}'
+		);
+
+		$document->addScriptDeclaration(
+			'(function(){'
+			. 'var init=function(){'
+			. 'if(document.getElementById("keycloakoauth-admin-login")){return;}'
+			. 'var form=document.querySelector("form[action*=\"task=login\"], form#form-login, form[name=login]");'
+			. 'if(!form){return;}'
+			. 'var container=document.createElement("div");'
+			. 'container.id="keycloakoauth-admin-login";'
+			. 'container.className="keycloakoauth-admin-login";'
+			. 'var link=document.createElement("a");'
+			. 'link.className="keycloakoauth-admin-login__button";'
+			. 'link.href=' . json_encode($buttonUrl, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . ';'
+			. 'link.textContent=' . json_encode($buttonLabel, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . ';'
+			. 'container.appendChild(link);'
+			. 'form.appendChild(container);'
+			. '};'
+			. 'if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",init);}else{init();}'
+			. '})();'
+		);
 	}
 
 	/**
@@ -73,6 +167,13 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 		if ($task === 'mapping_callback')
 		{
 			$this->handleMappingCallbackRequest();
+
+			return;
+		}
+
+		if ($task === 'admin_callback')
+		{
+			$this->handleAdminCallbackRequest();
 
 			return;
 		}
@@ -115,6 +216,128 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 		}
 	}
 
+	private function isAdminCallbackRequest(): bool
+	{
+		$app = $this->getApplication();
+		$input = $app->getInput();
+		$state = $input->getString('state', '');
+		$hasCodeOrError = $input->getString('code', '') !== '' || $input->getString('error', '') !== '';
+		$isExplicitCallback = $input->getInt('keycloakoauth_admin_callback', 0) === 1;
+		$isAdminLoginRoute = $input->getCmd('option', '') === ''
+			|| $input->getCmd('option', '') === 'com_login'
+			|| ($input->getCmd('option', '') === 'com_users' && $input->getCmd('task', '') === 'login');
+
+		return $app->isClient('administrator')
+			&& ($isExplicitCallback || $isAdminLoginRoute)
+			&& $hasCodeOrError
+			&& strpos($state, 'kcadmin_') === 0;
+	}
+
+	private function handleAdminCallbackRequest(): void
+	{
+		/** @var \Joomla\CMS\Application\CMSApplication $app */
+		$app = $this->getApplication();
+		$input = $app->getInput();
+		$state = $input->getString('state', '');
+		$error = $input->getString('error', '');
+		$code = $input->getString('code', '');
+
+		Log::add(
+			'KeycloakOAuth admin callback received from provider: state=' . $state
+				. ', has_code=' . ($code !== '' ? '1' : '0')
+				. ', error=' . ($error !== '' ? $error : '-'),
+			Log::WARNING,
+			'keycloakoauth'
+		);
+
+		if (!$this->validateAdminState($state))
+		{
+			$this->renderAdminLoginError(Text::_('PLG_SYSTEM_KEYCLOAKOAUTH_ADMIN_LOGIN_INVALID_STATE'));
+		}
+
+		if ($error !== '')
+		{
+			$description = $input->getString('error_description', '');
+			$message = Text::_('PLG_SYSTEM_KEYCLOAKOAUTH_ADMIN_LOGIN_PROVIDER_ERROR') . ': ' . $error;
+
+			if ($description !== '')
+			{
+				$message .= ' (' . $description . ')';
+			}
+
+			$this->renderAdminLoginError($message);
+		}
+
+		if ($code === '')
+		{
+			$this->renderAdminLoginError(Text::_('PLG_SYSTEM_KEYCLOAKOAUTH_ADMIN_LOGIN_MISSING_CODE'));
+		}
+
+		try
+		{
+			$service = $this->getKeycloakService();
+			$redirectUri = $this->getAdminRedirectUri();
+			$accessToken = $service->exchangeAuthorizationCodeForAccessToken(
+				(string) $this->params->get('token_url', ''),
+				(string) $this->params->get('client_id', ''),
+				(string) $this->params->get('client_secret', ''),
+				$redirectUri,
+				$code
+			);
+			$userInfo = $service->fetchUserInfo((string) $this->params->get('userinfo_url', ''), $accessToken);
+			$emailField = trim((string) $this->params->get('email_mapping', ''));
+			$email = $service->extractStringField($userInfo, $emailField);
+
+			if ($emailField === '')
+			{
+				throw new \RuntimeException(Text::_('PLG_SYSTEM_KEYCLOAKOAUTH_ADMIN_LOGIN_EMAIL_MAPPING_MISSING'));
+			}
+
+			if ($email === '')
+			{
+				throw new \RuntimeException(Text::_('PLG_SYSTEM_KEYCLOAKOAUTH_ADMIN_LOGIN_EMAIL_MISSING'));
+			}
+
+			$user = $this->loadUserByEmail($email);
+
+			if ($user === null)
+			{
+				throw new \RuntimeException(Text::sprintf('PLG_SYSTEM_KEYCLOAKOAUTH_ADMIN_LOGIN_USER_NOT_FOUND', $email));
+			}
+
+			$this->synchronizeMappedGroups((int) $user->id, $userInfo);
+			Access::clearStatics();
+			$user = $this->reloadUser((int) $user->id);
+
+			if ((int) $user->id <= 0 || !$user->authorise('core.login.admin'))
+			{
+				throw new \RuntimeException(Text::_('PLG_SYSTEM_KEYCLOAKOAUTH_ADMIN_LOGIN_ACCESS_DENIED'));
+			}
+
+			$token = $this->getAdminLoginSessionService()->storePendingLogin((int) $user->id, (string) $user->username, (string) $user->email);
+			$loginResult = $app->login([
+				'username'            => (string) $user->username,
+				'password'            => '',
+				'keycloakoauth_token' => $token,
+			], [
+				'silent' => true,
+			]);
+
+			if ($loginResult !== true)
+			{
+				throw new \RuntimeException(Text::_('PLG_SYSTEM_KEYCLOAKOAUTH_ADMIN_LOGIN_AUTHENTICATION_FAILED'));
+			}
+
+			$app->redirect(Uri::base() . 'index.php');
+			$app->close();
+		}
+		catch (\Throwable $exception)
+		{
+			Log::add('KeycloakOAuth admin login failed: ' . $exception->getMessage(), Log::ERROR, 'keycloakoauth');
+			$this->renderAdminLoginError($exception->getMessage());
+		}
+	}
+
 	private function handleDiscoveryTask(Event $event, string $baseUrl): void
 	{
 		$service = $this->getKeycloakService();
@@ -131,6 +354,27 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 		$event->setArgument('result', $results);
 
 		Log::add('KeycloakOAuth discovery successful', Log::DEBUG, 'keycloakoauth');
+	}
+
+	private function forwardAdminCallbackToAdministratorClient(): void
+	{
+		$queryParams = $_GET;
+
+		if (!is_array($queryParams))
+		{
+			$queryParams = [];
+		}
+
+		$queryParams['keycloakoauth_admin_callback'] = '1';
+
+		$adminBase = rtrim(Uri::root(), '/') . '/administrator/index.php';
+		$query = http_build_query($queryParams, '', '&', PHP_QUERY_RFC3986);
+		$targetUrl = $adminBase . ($query !== '' ? '?' . $query : '');
+
+		Log::add('KeycloakOAuth forwarding admin callback to administrator client: ' . $targetUrl, Log::WARNING, 'keycloakoauth');
+
+		@header('Location: ' . $targetUrl, true, 303);
+		$this->getApplication()->close();
 	}
 
 	private function handleMappingTryConnectionTask(Event $event): void
@@ -173,6 +417,28 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 		$event->setArgument('result', $results);
 
 		Log::add('KeycloakOAuth mapping connection prepared', Log::DEBUG, 'keycloakoauth');
+	}
+
+	private function isAdministratorLoginPage(): bool
+	{
+		$input = $this->getApplication()->getInput();
+		$option = $input->getCmd('option', '');
+		$task = $input->getCmd('task', '');
+
+		return $option === ''
+			|| $option === 'com_login'
+			|| ($option === 'com_users' && $task === 'login');
+	}
+
+	private function isAdminLoginAvailable(): bool
+	{
+		return $this->normalizeBooleanParamValue($this->params->get('allow_admin_user_login', 0)) === 1
+			&& trim((string) $this->params->get('client_id', '')) !== ''
+			&& trim((string) $this->params->get('client_secret', '')) !== ''
+			&& trim((string) $this->params->get('auth_url', '')) !== ''
+			&& trim((string) $this->params->get('token_url', '')) !== ''
+			&& trim((string) $this->params->get('userinfo_url', '')) !== ''
+			&& trim((string) $this->params->get('email_mapping', '')) !== '';
 	}
 
 	private function isMappingCallbackRequest(): bool
@@ -462,6 +728,37 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 		return $callbackUri->toString(['scheme', 'host', 'port', 'path', 'query']);
 	}
 
+	private function getAdminRedirectUri(): string
+	{
+		$configuredRedirectUri = trim((string) $this->params->get('redirect_uri', ''));
+
+		if ($configuredRedirectUri !== '')
+		{
+			$configuredUri = Uri::getInstance($configuredRedirectUri);
+
+			if ($configuredUri->getVar('keycloakoauth_admin_callback', '0') === '1')
+			{
+				return $configuredRedirectUri;
+			}
+		}
+
+		$adminRoot = rtrim(Uri::root(), '/') . '/administrator/index.php';
+		$callbackUri = Uri::getInstance($adminRoot);
+		$callbackUri->setVar('option', 'com_ajax');
+		$callbackUri->setVar('plugin', 'keycloakoauth');
+		$callbackUri->setVar('group', 'system');
+		$callbackUri->setVar('format', 'raw');
+		$callbackUri->setVar('task', 'admin_callback');
+		$callbackUri->setVar('keycloakoauth_admin_callback', '1');
+
+		return $callbackUri->toString(['scheme', 'host', 'port', 'path', 'query']);
+	}
+
+	private function getAdminLoginPageUrl(): string
+	{
+		return Uri::base() . 'index.php';
+	}
+
 	private function getRedirectUriSource(): string
 	{
 		$configuredRedirectUri = trim((string) $this->params->get('redirect_uri', ''));
@@ -471,50 +768,22 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 
 	private function createMappingState(): string
 	{
-		$issuedAt = time();
-		$nonce = bin2hex(random_bytes(16));
-		$payload = $issuedAt . '.' . $nonce;
-		$signature = hash_hmac('sha256', $payload, $this->getStateSecret());
-
-		return 'kcmap_' . $payload . '.' . $signature;
+		return $this->getKeycloakService()->buildSignedState('kcmap_', $this->getStateSecret());
 	}
 
 	private function validateMappingState(string $state): bool
 	{
-		$state = trim($state);
+		return $this->getKeycloakService()->validateSignedState($state, 'kcmap_', $this->getStateSecret());
+	}
 
-		if ($state === '' || strpos($state, 'kcmap_') !== 0)
-		{
-			return false;
-		}
+	private function createAdminState(): string
+	{
+		return $this->getKeycloakService()->buildSignedState('kcadmin_', $this->getStateSecret());
+	}
 
-		$raw = substr($state, 6);
-		$parts = explode('.', $raw);
-
-		if (count($parts) !== 3)
-		{
-			return false;
-		}
-
-		[$issuedAtRaw, $nonce, $signature] = $parts;
-
-		if (!ctype_digit($issuedAtRaw) || strlen($nonce) !== 32 || !ctype_xdigit($nonce) || strlen($signature) !== 64 || !ctype_xdigit($signature))
-		{
-			return false;
-		}
-
-		$issuedAt = (int) $issuedAtRaw;
-
-		// Keep state validity short to limit replay window.
-		if ($issuedAt <= 0 || (time() - $issuedAt) > 600)
-		{
-			return false;
-		}
-
-		$payload = $issuedAtRaw . '.' . strtolower($nonce);
-		$expectedSignature = hash_hmac('sha256', $payload, $this->getStateSecret());
-
-		return hash_equals($expectedSignature, strtolower($signature));
+	private function validateAdminState(string $state): bool
+	{
+		return $this->getKeycloakService()->validateSignedState($state, 'kcadmin_', $this->getStateSecret());
 	}
 
 	private function getStateSecret(): string
@@ -559,5 +828,190 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 		}
 
 		return $this->keycloakService;
+	}
+
+	private function getAdminLoginSessionService(): AdminLoginSessionService
+	{
+		if ($this->adminLoginSessionService === null)
+		{
+			$this->adminLoginSessionService = new AdminLoginSessionService();
+		}
+
+		return $this->adminLoginSessionService;
+	}
+
+	private function renderAdminLoginError(string $message): void
+	{
+		$title = htmlspecialchars(Text::_('PLG_SYSTEM_KEYCLOAKOAUTH_ADMIN_LOGIN_TITLE'), ENT_QUOTES, 'UTF-8');
+		$safeMessage = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+		$backLabel = htmlspecialchars(Text::_('PLG_SYSTEM_KEYCLOAKOAUTH_ADMIN_LOGIN_BACK'), ENT_QUOTES, 'UTF-8');
+		$backUrl = htmlspecialchars($this->getAdminLoginPageUrl(), ENT_QUOTES, 'UTF-8');
+
+		$content = '<!doctype html>'
+			. '<html><head><meta charset="utf-8"><title>' . $title . '</title>'
+			. '<style>body{font-family:sans-serif;padding:24px;max-width:640px;margin:0 auto;}p{margin-bottom:16px;color:#b40000;}a{color:#0f5ea8;}</style>'
+			. '</head><body>'
+			. '<h2>' . $title . '</h2>'
+			. '<p>' . $safeMessage . '</p>'
+			. '<p><a href="' . $backUrl . '">' . $backLabel . '</a></p>'
+			. '</body></html>';
+
+		$this->renderPopupResponse($content);
+	}
+
+	private function loadUserByEmail(string $email): ?object
+	{
+		$db = Factory::getContainer()->get(DatabaseInterface::class);
+		$query = $db->getQuery(true)
+			->select($db->quoteName(['id']))
+			->from($db->quoteName('#__users'))
+			->where($db->quoteName('email') . ' = :email')
+			->bind(':email', $email)
+			->setLimit(2);
+
+		$db->setQuery($query);
+		$userIds = $db->loadColumn();
+
+		if (!is_array($userIds) || $userIds === [])
+		{
+			return null;
+		}
+
+		if (count($userIds) > 1)
+		{
+			throw new \RuntimeException(Text::sprintf('PLG_SYSTEM_KEYCLOAKOAUTH_ADMIN_LOGIN_DUPLICATE_EMAIL', $email));
+		}
+
+		return $this->reloadUser((int) $userIds[0]);
+	}
+
+	private function reloadUser(int $userId): object
+	{
+		return Factory::getContainer()->get(UserFactoryInterface::class)->loadUserById($userId);
+	}
+
+	private function synchronizeMappedGroups(int $userId, array $userInfo): void
+	{
+		$groupMappings = $this->getConfiguredGroupMappings();
+
+		if ($groupMappings === [])
+		{
+			return;
+		}
+
+		$roles = $this->getKeycloakService()->extractClientRoles($userInfo, (string) $this->params->get('client_id', ''));
+		$user = $this->reloadUser($userId);
+		$currentGroups = array_map('intval', array_values((array) ($user->groups ?? [])));
+		$targetGroupIds = [];
+
+		foreach ($groupMappings as $mapping)
+		{
+			if (in_array($mapping['claim_value'], $roles, true))
+			{
+				$targetGroupIds[] = (int) $mapping['group_id'];
+			}
+		}
+
+		$targetGroupIds = array_values(array_unique($targetGroupIds));
+		$groupsToAdd = array_values(array_diff($targetGroupIds, $currentGroups));
+		$groupsToRemove = array_values(array_diff($currentGroups, $targetGroupIds));
+
+		Log::add(
+			'KeycloakOAuth group matching: user_id=' . $userId
+				. ', roles=' . json_encode($roles, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+				. ', current_groups=' . json_encode($currentGroups, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+				. ', target_groups=' . json_encode($targetGroupIds, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+				. ', add=' . json_encode($groupsToAdd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+				. ', remove=' . json_encode($groupsToRemove, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+			Log::DEBUG,
+			'keycloakoauth'
+		);
+
+		foreach ($groupsToAdd as $groupId)
+		{
+			Log::add('KeycloakOAuth adding user to group: user_id=' . $userId . ', group_id=' . $groupId, Log::DEBUG, 'keycloakoauth');
+			$this->addUserToGroupDirect($userId, (int) $groupId);
+		}
+
+		foreach ($groupsToRemove as $groupId)
+		{
+			Log::add('KeycloakOAuth removing user from group: user_id=' . $userId . ', group_id=' . $groupId, Log::DEBUG, 'keycloakoauth');
+			$this->removeUserFromGroupDirect($userId, (int) $groupId);
+		}
+	}
+
+	private function addUserToGroupDirect(int $userId, int $groupId): void
+	{
+		$db = Factory::getContainer()->get(DatabaseInterface::class);
+
+		$check = $db->getQuery(true)
+			->select('1')
+			->from($db->quoteName('#__user_usergroup_map'))
+			->where($db->quoteName('user_id') . ' = ' . $userId)
+			->where($db->quoteName('group_id') . ' = ' . $groupId);
+		$db->setQuery($check);
+
+		if ($db->loadResult() !== null)
+		{
+			return;
+		}
+
+		$insert = $db->getQuery(true)
+			->insert($db->quoteName('#__user_usergroup_map'))
+			->columns([$db->quoteName('user_id'), $db->quoteName('group_id')])
+			->values($userId . ', ' . $groupId);
+		$db->setQuery($insert);
+		$db->execute();
+	}
+
+	private function removeUserFromGroupDirect(int $userId, int $groupId): void
+	{
+		$db = Factory::getContainer()->get(DatabaseInterface::class);
+
+		$delete = $db->getQuery(true)
+			->delete($db->quoteName('#__user_usergroup_map'))
+			->where($db->quoteName('user_id') . ' = ' . $userId)
+			->where($db->quoteName('group_id') . ' = ' . $groupId);
+		$db->setQuery($delete);
+		$db->execute();
+	}
+
+	/**
+	 * @return array<int, array{group_id:int, claim_value:string}>
+	 */
+	private function getConfiguredGroupMappings(): array
+	{
+		$rawMappings = $this->params->get('group_mappings', '[]');
+		$decoded = is_string($rawMappings) ? json_decode($rawMappings, true) : $rawMappings;
+
+		if (!is_array($decoded))
+		{
+			return [];
+		}
+
+		$mappings = [];
+
+		foreach ($decoded as $mapping)
+		{
+			if (!is_array($mapping))
+			{
+				continue;
+			}
+
+			$groupId = (int) ($mapping['group_id'] ?? 0);
+			$claimValue = trim((string) ($mapping['claim_value'] ?? ''));
+
+			if ($groupId <= 0 || $claimValue === '')
+			{
+				continue;
+			}
+
+			$mappings[] = [
+				'group_id' => $groupId,
+				'claim_value' => $claimValue,
+			];
+		}
+
+		return $mappings;
 	}
 }

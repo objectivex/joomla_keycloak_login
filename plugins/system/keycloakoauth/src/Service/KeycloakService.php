@@ -116,6 +116,63 @@ final class KeycloakService
 		return rtrim(trim($baseUrl), '/') . '/.well-known/openid-configuration';
 	}
 
+	public function buildSignedState(string $prefix, string $secret): string
+	{
+		$prefix = trim($prefix);
+		$secret = trim($secret);
+
+		if ($prefix === '' || $secret === '')
+		{
+			throw new \RuntimeException('Missing state configuration', 500);
+		}
+
+		$issuedAt = time();
+		$nonce = bin2hex(random_bytes(16));
+		$payload = $issuedAt . '.' . $nonce;
+		$signature = hash_hmac('sha256', $payload, $secret);
+
+		return $prefix . $payload . '.' . $signature;
+	}
+
+	public function validateSignedState(string $state, string $prefix, string $secret, int $ttl = 600): bool
+	{
+		$state = trim($state);
+		$prefix = trim($prefix);
+		$secret = trim($secret);
+
+		if ($state === '' || $prefix === '' || $secret === '' || strpos($state, $prefix) !== 0)
+		{
+			return false;
+		}
+
+		$raw = substr($state, strlen($prefix));
+		$parts = explode('.', $raw);
+
+		if (count($parts) !== 3)
+		{
+			return false;
+		}
+
+		[$issuedAtRaw, $nonce, $signature] = $parts;
+
+		if (!ctype_digit($issuedAtRaw) || strlen($nonce) !== 32 || !ctype_xdigit($nonce) || strlen($signature) !== 64 || !ctype_xdigit($signature))
+		{
+			return false;
+		}
+
+		$issuedAt = (int) $issuedAtRaw;
+
+		if ($issuedAt <= 0 || (time() - $issuedAt) > $ttl)
+		{
+			return false;
+		}
+
+		$payload = $issuedAtRaw . '.' . strtolower($nonce);
+		$expectedSignature = hash_hmac('sha256', $payload, $secret);
+
+		return hash_equals($expectedSignature, strtolower($signature));
+	}
+
 	public function buildAuthorizationUrl(string $authorizationEndpoint, string $clientId, string $redirectUri, string $state): string
 	{
 		$authorizationEndpoint = trim($authorizationEndpoint);
@@ -262,6 +319,64 @@ final class KeycloakService
 		}
 
 		return $userInfo;
+	}
+
+	public function extractStringField(array $payload, string $fieldName): string
+	{
+		$fieldName = trim($fieldName);
+
+		if ($fieldName === '' || !array_key_exists($fieldName, $payload))
+		{
+			return '';
+		}
+
+		$value = $payload[$fieldName];
+
+		if (is_scalar($value))
+		{
+			return trim((string) $value);
+		}
+
+		return '';
+	}
+
+	/**
+	 * @return string[]
+	 */
+	public function extractClientRoles(array $userInfo, string $clientId): array
+	{
+		$clientId = trim($clientId);
+
+		if ($clientId === '')
+		{
+			return [];
+		}
+
+		$resourceAccess = $userInfo['resource_access'] ?? null;
+
+		if (!is_array($resourceAccess))
+		{
+			return [];
+		}
+
+		$clientAccess = $resourceAccess[$clientId] ?? null;
+
+		if (!is_array($clientAccess))
+		{
+			return [];
+		}
+
+		$roles = $clientAccess['roles'] ?? null;
+
+		if (!is_array($roles))
+		{
+			return [];
+		}
+
+		$roles = array_filter($roles, static fn ($role) => is_string($role) && trim($role) !== '');
+		$roles = array_map(static fn ($role) => trim((string) $role), $roles);
+
+		return array_values(array_unique($roles));
 	}
 
 	/**
