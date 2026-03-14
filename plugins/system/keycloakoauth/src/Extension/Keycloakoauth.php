@@ -64,7 +64,17 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 			throw new \RuntimeException('Invalid CSRF token', 403);
 		}
 
-		$baseUrl = $this->getApplication()->getInput()->post->getString('base_url', '');
+		$app  = $this->getApplication();
+		$user = $app->getIdentity();
+
+		// Ensure that only privileged users in the administrator application can perform discovery
+		if (!$app->isClient('administrator') || !$user->authorise('core.admin'))
+		{
+			Log::add('KeycloakOAuth AJAX discovery called without sufficient permissions', Log::WARNING, 'keycloakoauth');
+			throw new \RuntimeException('Not authorized', 403);
+		}
+
+		$baseUrl = $app->getInput()->post->getString('base_url', '');
 
 		$service = $this->getKeycloakService();
 		Log::add('KeycloakOAuth discovery: ' . $service->getDiscoveryUrl($baseUrl), Log::DEBUG, 'keycloakoauth');
