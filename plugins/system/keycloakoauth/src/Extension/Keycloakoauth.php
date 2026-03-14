@@ -136,13 +136,25 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 	private function handleMappingTryConnectionTask(Event $event): void
 	{
 		$authorizationEndpoint = (string) $this->params->get('auth_url', '');
+		$tokenEndpoint         = (string) $this->params->get('token_url', '');
+		$userinfoEndpoint      = (string) $this->params->get('userinfo_url', '');
 		$clientId              = (string) $this->params->get('client_id', '');
+		$clientSecret          = (string) $this->params->get('client_secret', '');
 		$redirectUri           = $this->getEffectiveRedirectUri();
 		$redirectSource        = $this->getRedirectUriSource();
 
-		if ($authorizationEndpoint === '' || $clientId === '')
+		if (
+			$authorizationEndpoint === '' ||
+			$tokenEndpoint === '' ||
+			$userinfoEndpoint === '' ||
+			$clientId === '' ||
+			$clientSecret === ''
+		)
 		{
-			throw new \RuntimeException('Missing OAuth configuration. Please configure Authorization URL and Client ID.', 400);
+			throw new \RuntimeException(
+				'Missing OAuth configuration. Please configure Authorization URL, Token URL, Userinfo URL, Client ID, and Client Secret.',
+				400
+			);
 		}
 
 		$state = $this->createMappingState();
