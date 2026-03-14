@@ -66,8 +66,7 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 			Log::add(
 				'KeycloakOAuth admin callback reached non-admin client: client=' . ($this->getApplication()->isClient('site') ? 'site' : 'unknown')
 					. ', option=' . $input->getCmd('option', '-')
-					. ', task=' . $input->getCmd('task', '-')
-					. ', state=' . $state,
+					. ', task=' . $input->getCmd('task', '-'),
 				Log::WARNING,
 				'keycloakoauth'
 			);
