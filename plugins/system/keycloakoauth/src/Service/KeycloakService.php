@@ -173,6 +173,13 @@ final class KeycloakService
 			throw new \RuntimeException('Invalid token endpoint', 400);
 		}
 
+		$scheme = parse_url($tokenEndpoint, PHP_URL_SCHEME);
+
+		if ($scheme === null || ($scheme !== 'http' && $scheme !== 'https'))
+		{
+			throw new \RuntimeException('Invalid token endpoint scheme', 400);
+		}
+
 		if ($clientId === '' || $clientSecret === '' || $redirectUri === '' || $authorizationCode === '')
 		{
 			throw new \RuntimeException('Missing token exchange parameters', 400);
