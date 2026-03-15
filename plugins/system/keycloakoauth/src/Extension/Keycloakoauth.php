@@ -7,6 +7,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Log\Log;
 use Joomla\CMS\Plugin\CMSPlugin;
+use Joomla\CMS\Plugin\PluginHelper;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
 use Joomla\CMS\User\UserFactoryInterface;
@@ -321,10 +322,15 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 				throw new \RuntimeException(Text::_('PLG_SYSTEM_KEYCLOAKOAUTH_ADMIN_LOGIN_ACCESS_DENIED'));
 			}
 
+			if (!PluginHelper::isEnabled('authentication', 'keycloakoauth'))
+			{
+				throw new \RuntimeException('Authentication plugin "keycloakoauth" is not enabled.');
+			}
+
 			$token = $this->getAdminLoginSessionService()->storePendingLogin((int) $user->id, (string) $user->username, (string) $user->email);
 			$loginResult = $app->login([
 				'username'            => (string) $user->username,
-				'password'            => '',
+				'password'            => '__keycloakoauth_token_login__',
 				'keycloakoauth_token' => $token,
 			], [
 				'silent' => true,
@@ -929,6 +935,8 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 		$roles = $this->getKeycloakService()->extractClientRoles($userInfo, (string) $this->params->get('client_id', ''));
 		$user = $this->reloadUser($userId);
 		$currentGroups = array_map('intval', array_values((array) ($user->groups ?? [])));
+		$removeAllUnmappedGroups = $this->normalizeBooleanParamValue($this->params->get('remove_all_unmapped_groups', 0)) === 1;
+		$managedGroupIds = array_values(array_unique(array_map(static fn (array $mapping): int => (int) $mapping['group_id'], $groupMappings)));
 		$targetGroupIds = [];
 
 		foreach ($groupMappings as $mapping)
@@ -941,12 +949,23 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 
 		$targetGroupIds = array_values(array_unique($targetGroupIds));
 		$groupsToAdd = array_values(array_diff($targetGroupIds, $currentGroups));
-		$groupsToRemove = array_values(array_diff($currentGroups, $targetGroupIds));
+
+		if ($removeAllUnmappedGroups)
+		{
+			$groupsToRemove = array_values(array_diff($currentGroups, $targetGroupIds));
+		}
+		else
+		{
+			$currentManagedGroups = array_values(array_intersect($currentGroups, $managedGroupIds));
+			$groupsToRemove = array_values(array_diff($currentManagedGroups, $targetGroupIds));
+		}
 
 		Log::add(
 			'KeycloakOAuth group matching: user_id=' . $userId
+				. ', remove_all_unmapped=' . ($removeAllUnmappedGroups ? '1' : '0')
 				. ', roles=' . json_encode($roles, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
 				. ', current_groups=' . json_encode($currentGroups, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+				. ', managed_groups=' . json_encode($managedGroupIds, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
 				. ', target_groups=' . json_encode($targetGroupIds, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
 				. ', add=' . json_encode($groupsToAdd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
 				. ', remove=' . json_encode($groupsToRemove, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
