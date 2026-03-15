@@ -46,6 +46,11 @@
                     label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_TRY_CONNECTION_BUTTON" />
             </fieldset>
             <fieldset name="group_mapping" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELDSET_GROUP_MAPPING">
+                <field name="remove_all_unmapped_groups" type="PersistedCheckbox"
+                    label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_REMOVE_ALL_UNMAPPED_GROUPS"
+                    description="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_REMOVE_ALL_UNMAPPED_GROUPS_DESC"
+                    default="0"
+                    value="1" />
                 <field name="group_mappings" type="GroupMappings"
                     label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_GROUP_MAPPINGS" />
             </fieldset>
