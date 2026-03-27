@@ -13,4 +13,4 @@ pwd
 zip -rq ../../../dist/keycloakoauth-package/packages/plg_system_keycloakoauth.zip .
 
 cd ../../../dist/keycloakoauth-package && \
-zip -rq ../pkg_keycloakoauth_1.0.0.zip .
+zip -rq ../pkg_keycloakoauth_1.0.1.zip .
