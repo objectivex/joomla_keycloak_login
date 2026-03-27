@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/bin/bash
 mkdir -p dist/keycloakoauth-package/packages
 
 rm -f dist/keycloakoauth-package/packages/plg_authentication_keycloakoauth.zip
