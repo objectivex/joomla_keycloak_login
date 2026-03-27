@@ -289,6 +289,147 @@ final class KeycloakService
 		return trim($tokenData['access_token']);
 	}
 
+	public function isAccessTokenIssuedForClient(string $accessToken, string $expectedClientId): bool
+	{
+		$expectedClientId = trim($expectedClientId);
+
+		if ($expectedClientId === '')
+		{
+			return false;
+		}
+
+		$claims = $this->decodeJwtPayload($accessToken);
+
+		if ($claims === [])
+		{
+			return false;
+		}
+
+		$azp = $claims['azp'] ?? null;
+
+		if (is_string($azp) && trim($azp) !== '')
+		{
+			return trim($azp) === $expectedClientId;
+		}
+
+		$clientId = $claims['client_id'] ?? null;
+
+		if (is_string($clientId) && trim($clientId) !== '')
+		{
+			return trim($clientId) === $expectedClientId;
+		}
+
+		$aud = $claims['aud'] ?? null;
+
+		if (is_string($aud))
+		{
+			return trim($aud) === $expectedClientId;
+		}
+
+		if (is_array($aud))
+		{
+			foreach ($aud as $audience)
+			{
+				if (is_string($audience) && trim($audience) === $expectedClientId)
+				{
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	public function extractAccessTokenClientReference(string $accessToken): string
+	{
+		$claims = $this->decodeJwtPayload($accessToken);
+
+		if ($claims === [])
+		{
+			return '';
+		}
+
+		$azp = $claims['azp'] ?? null;
+
+		if (is_string($azp) && trim($azp) !== '')
+		{
+			return trim($azp);
+		}
+
+		$clientId = $claims['client_id'] ?? null;
+
+		if (is_string($clientId) && trim($clientId) !== '')
+		{
+			return trim($clientId);
+		}
+
+		$aud = $claims['aud'] ?? null;
+
+		if (is_string($aud) && trim($aud) !== '')
+		{
+			return trim($aud);
+		}
+
+		if (is_array($aud))
+		{
+			foreach ($aud as $audience)
+			{
+				if (is_string($audience) && trim($audience) !== '')
+				{
+					return trim($audience);
+				}
+			}
+		}
+
+		return '';
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private function decodeJwtPayload(string $jwt): array
+	{
+		$jwt = trim($jwt);
+
+		if ($jwt === '')
+		{
+			return [];
+		}
+
+		$parts = explode('.', $jwt);
+
+		if (count($parts) < 2)
+		{
+			return [];
+		}
+
+		$decodedPayload = $this->decodeBase64Url($parts[1]);
+
+		if ($decodedPayload === '')
+		{
+			return [];
+		}
+
+		$claims = json_decode($decodedPayload, true);
+
+		return is_array($claims) ? $claims : [];
+	}
+
+	private function decodeBase64Url(string $input): string
+	{
+		$input = strtr($input, '-_', '+/');
+		$paddingLength = strlen($input) % 4;
+
+		if ($paddingLength !== 0)
+		{
+			$input .= str_repeat('=', 4 - $paddingLength);
+		}
+
+		$decoded = base64_decode($input, true);
+
+		return $decoded === false ? '' : $decoded;
+	}
+
 	/**
 	 * @return array<string, mixed>
 	 */

@@ -7,7 +7,7 @@
     <license>GNU General Public License v2 or later</license>
     <authorEmail>contact@example.com</authorEmail>
     <authorUrl>https://example.com</authorUrl>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <description>PLG_SYSTEM_KEYCLOAKOAUTH_DESC</description>
     <namespace path="src">Joomla\Plugin\System\Keycloakoauth</namespace>
     <files>
@@ -25,6 +25,8 @@
         <fields name="params" addfieldprefix="Joomla\Plugin\System\Keycloakoauth\Field">
             <fieldset name="oauth" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELDSET_OAUTH">
                 <field name="client_id" type="text" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_CLIENT_ID" />
+                <field name="admin_client_id" type="text" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_ADMIN_CLIENT_ID"
+                    description="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_ADMIN_CLIENT_ID_DESC" />
                 <field name="client_secret" type="password"
                     label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_CLIENT_SECRET" />
                 <field name="base_url" type="text" label="PLG_SYSTEM_KEYCLOAKOAUTH_FIELD_BASE_URL" />
