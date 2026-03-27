@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="package" version="5.0" method="upgrade">
+    <name>pkg_keycloakoauth</name>
+    <author>Sebastian Meyer</author>
+    <creationDate>2026-03-24</creationDate>
+    <copyright>2026 Sebastian Meyer</copyright>
+    <license>GNU General Public License v2 or later</license>
+    <authorEmail>contact@example.com</authorEmail>
+    <authorUrl>https://example.com</authorUrl>
+    <version>1.0.1</version>
+    <description>Keycloak OAuth package containing authentication and system plugins.</description>
+    <packagename>keycloakoauth</packagename>
+    <files folder="packages">
+        <file type="plugin" id="keycloakoauth" group="authentication">plg_authentication_keycloakoauth.zip</file>
+        <file type="plugin" id="keycloakoauth" group="system">plg_system_keycloakoauth.zip</file>
+    </files>
+</extension>

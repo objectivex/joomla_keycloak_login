@@ -1,3 +1,5 @@
 .vscode/
 .joomla-libs/
 .joomla-components/
+./dist/**.zip
+dist/**/*.zip

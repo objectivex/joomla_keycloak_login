@@ -7,7 +7,7 @@
     <license>GNU General Public License v2 or later</license>
     <authorEmail>contact@example.com</authorEmail>
     <authorUrl>https://example.com</authorUrl>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <description>PLG_AUTHENTICATION_KEYCLOAKOAUTH_DESC</description>
     <namespace path="src">Joomla\Plugin\Authentication\Keycloakoauth</namespace>
     <files>

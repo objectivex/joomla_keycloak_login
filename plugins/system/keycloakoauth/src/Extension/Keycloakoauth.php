@@ -104,9 +104,15 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 
 		try
 		{
+			$adminClientId = trim((string) $this->params->get('admin_client_id', ''));
+			if ($adminClientId === '')
+			{
+				$adminClientId = trim((string) $this->params->get('client_id', ''));
+			}
+
 			$buttonUrl = $this->getKeycloakService()->buildAuthorizationUrl(
 				(string) $this->params->get('auth_url', ''),
-				(string) $this->params->get('client_id', ''),
+				$adminClientId,
 				$this->getAdminRedirectUri(),
 				$this->createAdminState()
 			);
@@ -241,6 +247,11 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 
 	private function handleAdminCallbackRequest(): void
 	{
+		if (!$this->isAdminLoginAvailable())
+		{
+			$this->renderAdminLoginError(Text::_('PLG_SYSTEM_KEYCLOAKOAUTH_ADMIN_LOGIN_UNAVAILABLE'));
+		}
+
 		/** @var \Joomla\CMS\Application\CMSApplication $app */
 		$app = $this->getApplication();
 		$input = $app->getInput();
@@ -285,13 +296,36 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 		{
 			$service = $this->getKeycloakService();
 			$redirectUri = $this->getAdminRedirectUri();
+			$expectedAdminClientId = trim((string) $this->params->get('admin_client_id', ''));
+
+			if ($expectedAdminClientId === '')
+			{
+				$expectedAdminClientId = trim((string) $this->params->get('client_id', ''));
+			}
 			$accessToken = $service->exchangeAuthorizationCodeForAccessToken(
 				(string) $this->params->get('token_url', ''),
-				(string) $this->params->get('client_id', ''),
+				$expectedAdminClientId,
 				(string) $this->params->get('client_secret', ''),
 				$redirectUri,
 				$code
 			);
+
+			if (!$service->isAccessTokenIssuedForClient($accessToken, $expectedAdminClientId))
+			{
+				$actualClientReference = $service->extractAccessTokenClientReference($accessToken);
+
+				Log::add(
+					'KeycloakOAuth admin callback rejected due to client mismatch: expected=' . $expectedAdminClientId
+						. ', actual=' . ($actualClientReference !== '' ? $actualClientReference : 'unknown'),
+					Log::WARNING,
+					'keycloakoauth'
+				);
+
+				throw new \RuntimeException(
+					Text::sprintf('PLG_SYSTEM_KEYCLOAKOAUTH_ADMIN_LOGIN_CLIENT_MISMATCH', $expectedAdminClientId)
+				);
+			}
+
 			$userInfo = $service->fetchUserInfo((string) $this->params->get('userinfo_url', ''), $accessToken);
 			$emailField = trim((string) $this->params->get('email_mapping', ''));
 			$email = $service->extractStringField($userInfo, $emailField);
@@ -470,8 +504,12 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 
 	private function isAdminLoginAvailable(): bool
 	{
+		$adminClientId = trim((string) $this->params->get('admin_client_id', ''));
+		$regularClientId = trim((string) $this->params->get('client_id', ''));
+		$hasClientId = $adminClientId !== '' || $regularClientId !== '';
+
 		return $this->normalizeBooleanParamValue($this->params->get('allow_admin_user_login', 0)) === 1
-			&& trim((string) $this->params->get('client_id', '')) !== ''
+			&& $hasClientId
 			&& trim((string) $this->params->get('client_secret', '')) !== ''
 			&& trim((string) $this->params->get('auth_url', '')) !== ''
 			&& trim((string) $this->params->get('token_url', '')) !== ''
