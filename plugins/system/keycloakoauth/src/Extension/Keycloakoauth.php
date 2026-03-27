@@ -247,6 +247,11 @@ final class Keycloakoauth extends CMSPlugin implements SubscriberInterface
 
 	private function handleAdminCallbackRequest(): void
 	{
+		if (!$this->isAdminLoginAvailable())
+		{
+			$this->renderAdminLoginError(Text::_('PLG_SYSTEM_KEYCLOAKOAUTH_ADMIN_LOGIN_UNAVAILABLE'));
+		}
+
 		/** @var \Joomla\CMS\Application\CMSApplication $app */
 		$app = $this->getApplication();
 		$input = $app->getInput();
